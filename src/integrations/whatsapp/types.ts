@@ -1,10 +1,14 @@
+export type TemplateCategory = "authentication" | "marketing" | "utility";
+
 /** Template message (approved by the provider). */
 export interface TemplateMessage {
   type: "template";
   name: string;
+  category: TemplateCategory;
   /** Language code, e.g. `es_AR`. */
   languageCode: string;
-  parameters: string[];
+  /** Named parameters; values are strings. */
+  parameters: Record<string, string>;
 }
 
 /** Free-text message (only allowed inside the 24-hour customer service window). */
@@ -66,9 +70,15 @@ export type MessagingErrorKind =
   | "timeout" // outcome unknown, retry later with the same key
   | "invalid_recipient"
   | "unknown_template"
+  | "template_mismatch" // category or language differs from the catalog
+  | "invalid_template_parameters" // missing or extra parameters
   | "outside_window"
   | "idempotency_conflict";
 
+/**
+ * Failure raised by {@link MessagingProvider.send}. Only `transient` and `timeout` are retryable;
+ * every other kind is permanent. Messages are static and never repeat the input.
+ */
 export class MessagingError extends Error {
   readonly kind: MessagingErrorKind;
   readonly retryable: boolean;
