@@ -106,3 +106,39 @@ CREATE CONSTRAINT TRIGGER ledger_transactions_balanced
   AFTER INSERT ON ledger_transactions
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION ledger_check_transaction_balanced();
+
+-- Entries may only be added in the same database transaction that created their header.
+-- Mechanism: an AFTER INSERT trigger on ledger_transactions sets a transaction-local
+-- marker (set_config(..., true)) named after the header id; the BEFORE INSERT trigger on
+-- ledger_entries requires that marker. Trade-off versus comparing the header's xmin with
+-- the current transaction id: the marker is correct inside SAVEPOINTs (xmin would then
+-- be a subtransaction id), it is rolled back with a rolled-back savepoint, and it is
+-- cleared at COMMIT/ROLLBACK. Its weakness is that a session could set the marker by
+-- hand; that needs deliberate effort and is the same trust level as disabling triggers.
+-- Violations raise SQLSTATE 23000 (integrity_constraint_violation) with a message
+-- containing "closed transaction".
+CREATE FUNCTION ledger_mark_transaction_open() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM set_config('ledger.open_' || replace(NEW.id::text, '-', ''), 'on', true);
+  RETURN NULL;
+END;
+$$;
+
+CREATE FUNCTION ledger_reject_entry_on_closed_transaction() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF COALESCE(current_setting('ledger.open_' || replace(NEW.transaction_id::text, '-', ''), true), '') <> 'on' THEN
+    RAISE EXCEPTION 'cannot add entries to closed transaction %', NEW.transaction_id
+      USING ERRCODE = 'integrity_constraint_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER ledger_transactions_mark_open
+  AFTER INSERT ON ledger_transactions
+  FOR EACH ROW EXECUTE FUNCTION ledger_mark_transaction_open();
+CREATE TRIGGER ledger_entries_same_transaction_only
+  BEFORE INSERT ON ledger_entries
+  FOR EACH ROW EXECUTE FUNCTION ledger_reject_entry_on_closed_transaction();
