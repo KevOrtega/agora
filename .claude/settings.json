@@ -1,0 +1,65 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git -C * push*)",
+      "Bash(git -c * push*)",
+      "Bash(git --git-dir* push*)",
+      "Bash(git --work-tree* push*)",
+      "Bash(*/git push*)",
+      "Bash(*git  push*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh api*)",
+      "Bash(gh repo*)",
+      "Bash(gh workflow run*)",
+      "Bash(gh release*)",
+      "Bash(*railway*)",
+      "Bash(*vercel*)",
+      "Bash(fly *)",
+      "Bash(*flyctl*)",
+      "Bash(*netlify*)",
+      "Bash(*heroku*)",
+      "Bash(*deploy*)",
+      "Bash(npm publish*)",
+      "Bash(docker push*)",
+      "Bash(env)",
+      "Bash(printenv*)",
+      "Bash(set)",
+      "Bash(export)",
+      "Bash(export -p*)",
+      "Bash(declare -p*)",
+      "Bash(declare -x*)",
+      "Bash(*TOKEN*)",
+      "Bash(*environ*)",
+      "Bash(gh auth*)",
+      "Bash(git config*credential*)",
+      "Read(./.env*)",
+      "Read(**/.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(./secrets/**)",
+      "Read(**/secrets/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.git-credentials)",
+      "Read(~/.netrc)",
+      "Read(~/.ssh/**)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(//proc/**)",
+      "Edit(./.claude/**)",
+      "Write(./.claude/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
