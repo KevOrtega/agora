@@ -37,6 +37,7 @@ One modular monolith backend with a relational database and a job queue. One fol
 - `job_queue` — background jobs
 - `business_payouts` — payouts to businesses
 - `payments_topup` — customer credit top-ups
+- `settings` — typed, validated configurable parameters (timers, defaults, admin-loaded weights and commission)
 - `commission` — per-purchase commission
 
 Modules are currently empty placeholders.
