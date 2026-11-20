@@ -128,7 +128,11 @@ CREATE CONSTRAINT TRIGGER ledger_transactions_balanced
 --     treated as closed before the distance is computed.
 --   * No session state is involved, so it cannot be bypassed from SQL without privileges
 --     (disabling triggers or editing the table needs ownership). Requires PostgreSQL 13+.
--- If no header row is visible, the check is skipped and the foreign key raises 23503.
+-- If no header row is visible, the trigger itself raises 23503 (foreign_key_violation) on
+-- ledger_entries_transaction_id_fkey instead of deferring to the foreign key. Under READ
+-- COMMITTED, a header inserted but not yet committed by another session is invisible here,
+-- while the foreign key check would wait for that session and accept the row once it
+-- commits, attaching the entry to an already closed transaction.
 -- Violations raise SQLSTATE 23000 (integrity_constraint_violation) with a message
 -- containing "closed transaction".
 CREATE FUNCTION ledger_reject_entry_on_closed_transaction() RETURNS trigger
@@ -143,7 +147,8 @@ BEGIN
   SELECT xmin::text::bigint INTO header_xmin
   FROM ledger_transactions WHERE id = NEW.transaction_id;
   IF NOT FOUND THEN
-    RETURN NEW;
+    RAISE EXCEPTION 'ledger transaction % does not exist or is not visible to this transaction', NEW.transaction_id
+      USING ERRCODE = 'foreign_key_violation', CONSTRAINT = 'ledger_entries_transaction_id_fkey';
   END IF;
 
   IF header_xmin < 3 THEN

@@ -411,11 +411,25 @@ describe("closed ledger transactions (M1)", () => {
     const t = await openTransaction("savepoint-2", "topup");
     await db.query(ENTRY_SQL, [t, clearing, "debit", 30]);
     await db.query("ROLLBACK TO SAVEPOINT sp1");
-    // The header is gone, so there is nothing to check and the foreign key rejects the entry.
+    // The header is gone, so the trigger rejects the entry as a foreign key violation.
     await expectPgError(db.query(ENTRY_SQL, [t, bal, "credit", 30]), { code: FK, constraint: "ledger_entries_transaction_id_fkey" });
     await db.query("ROLLBACK");
     expect(await entryCount()).toBe(0);
     expect((await db.query("SELECT 1 FROM ledger_transactions WHERE idempotency_key = 'savepoint-2'")).rows).toHaveLength(0);
+  });
+});
+
+describe("ledger entries with a missing or invisible header (M1b)", () => {
+  // The cross-session race (a header inserted but not yet committed by another session) cannot
+  // be reproduced on PGlite (single connection); it is verified manually on PostgreSQL 17.
+  it("the trigger rejects an entry whose header does not exist or is not visible", async () => {
+    const { bal } = await ledgerPair();
+    await expectPgError(db.query(ENTRY_SQL, [NIL_UUID, bal, "credit", 1]), {
+      code: FK,
+      constraint: "ledger_entries_transaction_id_fkey",
+      message: /does not exist or is not visible to this transaction/,
+    });
+    expect(await entryCount()).toBe(0);
   });
 });
 
