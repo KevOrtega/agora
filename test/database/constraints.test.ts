@@ -358,6 +358,22 @@ describe("closed ledger transactions (M1)", () => {
     expect(await balanceOf(bal)).toBe(100);
   });
 
+  it("M1: setting a session config value cannot reopen a committed transaction", async () => {
+    const { bal, clearing } = await ledgerPair();
+    const txId = await insertTransfer(db, "closed-2", "topup", clearing, bal, 100);
+
+    await expectPgError(
+      db.transaction(async (tx) => {
+        await tx.query("SELECT set_config('ledger.open_' || replace($1::text, '-', ''), 'on', true)", [txId]);
+        await tx.query(ENTRY_SQL, [txId, clearing, "debit", 5000]);
+        await tx.query(ENTRY_SQL, [txId, bal, "credit", 5000]);
+      }),
+      { code: INTEGRITY, message: /closed transaction/ },
+    );
+    expect(await entryCount()).toBe(2);
+    expect(await balanceOf(bal)).toBe(100);
+  });
+
   it("M1: header and entries inserted in the same transaction still work", async () => {
     const { bal, clearing } = await ledgerPair();
     await insertTransfer(db, "same-tx-1", "topup", clearing, bal, 40);
@@ -388,14 +404,15 @@ describe("closed ledger transactions (M1)", () => {
     expect(await balanceOf(bal)).toBe(30);
   });
 
-  it("M1: header and entries in a rolled back SAVEPOINT leave nothing and entries then fail", async () => {
+  it("M1: header and entries in a rolled back SAVEPOINT leave nothing and entries then fail on the foreign key", async () => {
     const { bal, clearing } = await ledgerPair();
     await db.query("BEGIN");
     await db.query("SAVEPOINT sp1");
     const t = await openTransaction("savepoint-2", "topup");
     await db.query(ENTRY_SQL, [t, clearing, "debit", 30]);
     await db.query("ROLLBACK TO SAVEPOINT sp1");
-    await expectPgError(db.query(ENTRY_SQL, [t, bal, "credit", 30]), { code: INTEGRITY, message: /closed transaction/ });
+    // The header is gone, so there is nothing to check and the foreign key rejects the entry.
+    await expectPgError(db.query(ENTRY_SQL, [t, bal, "credit", 30]), { code: FK, constraint: "ledger_entries_transaction_id_fkey" });
     await db.query("ROLLBACK");
     expect(await entryCount()).toBe(0);
     expect((await db.query("SELECT 1 FROM ledger_transactions WHERE idempotency_key = 'savepoint-2'")).rows).toHaveLength(0);
@@ -424,8 +441,8 @@ describe("naming (AG-SEC-04)", () => {
     expect(all.columns.length).toBeGreaterThan(20);
     expect(all.constraints.length).toBeGreaterThan(20);
     expect(all.indexes.length).toBeGreaterThan(10);
-    expect(all.functions.length).toBeGreaterThanOrEqual(4);
-    expect(all.triggers.length).toBeGreaterThanOrEqual(8);
+    expect(all.functions.length).toBeGreaterThanOrEqual(3);
+    expect(all.triggers.length).toBeGreaterThanOrEqual(7);
     for (const [kind, list] of Object.entries(all)) {
       for (const n of list) {
         expect(n, `${kind} name`).toMatch(SNAKE);

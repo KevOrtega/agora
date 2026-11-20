@@ -108,27 +108,54 @@ CREATE CONSTRAINT TRIGGER ledger_transactions_balanced
   FOR EACH ROW EXECUTE FUNCTION ledger_check_transaction_balanced();
 
 -- Entries may only be added in the same database transaction that created their header.
--- Mechanism: an AFTER INSERT trigger on ledger_transactions sets a transaction-local
--- marker (set_config(..., true)) named after the header id; the BEFORE INSERT trigger on
--- ledger_entries requires that marker. Trade-off versus comparing the header's xmin with
--- the current transaction id: the marker is correct inside SAVEPOINTs (xmin would then
--- be a subtransaction id), it is rolled back with a rolled-back savepoint, and it is
--- cleared at COMMIT/ROLLBACK. Its weakness is that a session could set the marker by
--- hand; that needs deliberate effort and is the same trust level as disabling triggers.
+-- Mechanism: the BEFORE INSERT trigger on ledger_entries reads the visible header row's
+-- xmin (32-bit xid of the transaction, or of a subtransaction, that inserted it) and
+-- allows the insert only if that transaction is still in progress.
+--   * A header row visible to this session that was written by an in-progress transaction
+--     can only belong to the current transaction (other in-progress transactions' rows
+--     are invisible). pg_xact_status() checks the current transaction and all of its
+--     subtransactions (savepoints, released or not) first, so it reports 'in progress'
+--     for them. Committed, aborted, frozen or unknown (NULL) status means "closed".
+--   * xmin is 32 bits; pg_xact_status() needs a 64-bit xid8. The epoch comes from
+--     pg_current_xact_id(): the header xid is the current top-level xid plus the signed
+--     32-bit circular distance between the two xmin values (the same rule PostgreSQL uses
+--     to extend xids). Rows older than 2^31 xids are frozen, so the distance is
+--     unambiguous; a negative distance crosses into the previous epoch, and a positive
+--     one is a subtransaction id of this transaction (savepoints get larger ids). The
+--     header row is visible, so its xid already exists and pg_xact_status() is never
+--     called with a future xid (it would error); a negative result is treated as closed.
+--   * No session state is involved, so it cannot be bypassed from SQL without privileges
+--     (disabling triggers or editing the table needs ownership). Requires PostgreSQL 13+.
+-- If no header row is visible, the check is skipped and the foreign key raises 23503.
 -- Violations raise SQLSTATE 23000 (integrity_constraint_violation) with a message
 -- containing "closed transaction".
-CREATE FUNCTION ledger_mark_transaction_open() RETURNS trigger
-LANGUAGE plpgsql AS $$
-BEGIN
-  PERFORM set_config('ledger.open_' || replace(NEW.id::text, '-', ''), 'on', true);
-  RETURN NULL;
-END;
-$$;
-
 CREATE FUNCTION ledger_reject_entry_on_closed_transaction() RETURNS trigger
 LANGUAGE plpgsql AS $$
+DECLARE
+  header_xmin bigint;
+  current_xid bigint;
+  distance bigint;
+  candidate bigint;
+  header_status text;
 BEGIN
-  IF COALESCE(current_setting('ledger.open_' || replace(NEW.transaction_id::text, '-', ''), true), '') <> 'on' THEN
+  SELECT xmin::text::bigint INTO header_xmin
+  FROM ledger_transactions WHERE id = NEW.transaction_id;
+  IF NOT FOUND THEN
+    RETURN NEW;
+  END IF;
+
+  current_xid := pg_current_xact_id()::text::bigint;
+  distance := (header_xmin - (current_xid & 4294967295)) & 4294967295;
+  IF distance >= 2147483648 THEN
+    distance := distance - 4294967296;
+  END IF;
+  candidate := current_xid + distance;
+
+  IF candidate >= 0 THEN
+    header_status := pg_xact_status(candidate::text::xid8);
+  END IF;
+
+  IF header_status IS DISTINCT FROM 'in progress' THEN
     RAISE EXCEPTION 'cannot add entries to closed transaction %', NEW.transaction_id
       USING ERRCODE = 'integrity_constraint_violation';
   END IF;
@@ -136,9 +163,6 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER ledger_transactions_mark_open
-  AFTER INSERT ON ledger_transactions
-  FOR EACH ROW EXECUTE FUNCTION ledger_mark_transaction_open();
 CREATE TRIGGER ledger_entries_same_transaction_only
   BEFORE INSERT ON ledger_entries
   FOR EACH ROW EXECUTE FUNCTION ledger_reject_entry_on_closed_transaction();
