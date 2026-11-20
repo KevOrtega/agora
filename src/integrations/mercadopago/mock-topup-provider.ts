@@ -1,5 +1,6 @@
 import { NotificationRegistry } from "./mock-notifications.js";
 import {
+  IdempotencyConflictError,
   InvalidRequestError,
   type CreateTopupRequest,
   type RawNotification,
@@ -38,7 +39,16 @@ export class MockTopupProvider implements TopupProvider {
     }
     const existingId = this.byReference.get(request.externalReference);
     const existing = existingId ? this.payments.get(existingId) : undefined;
-    if (existing) return existing;
+    if (existing) {
+      if (
+        existing.customerId !== request.customerId ||
+        existing.amount !== request.amount ||
+        existing.currency !== request.currency
+      ) {
+        throw new IdempotencyConflictError("External reference was already used with a different payload");
+      }
+      return existing;
+    }
 
     const scenario = this.scenarios.get(request.externalReference) ?? this.defaultScenario;
     const status = OUTCOME[scenario];
