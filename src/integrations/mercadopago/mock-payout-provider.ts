@@ -17,6 +17,19 @@ export const MOCK_CLOSED_ACCOUNT_EMAIL = "closed@example.com";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Trims surrounding whitespace and lowercases. Internal whitespace is kept (it makes the e-mail invalid). */
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Idempotency fingerprint built from explicit, normalized fields (never from the caller's object shape). */
+function fingerprintOf(request: CreatePayoutRequest): string {
+  const d = request.destination as unknown as { type?: unknown; email?: unknown } | null | undefined;
+  const type = typeof d?.type === "string" ? d.type : null;
+  const email = typeof d?.email === "string" ? normalizeEmail(d.email) : null;
+  return JSON.stringify([request.amount, request.currency, request.reference, type, email]);
+}
+
 /** Deterministic in-memory payout provider with idempotency per key. No network, no randomness. */
 export class MockPayoutProvider implements PayoutProvider {
   private readonly byKey = new Map<string, { fingerprint: string; result: PayoutResult }>();
@@ -39,12 +52,7 @@ export class MockPayoutProvider implements PayoutProvider {
     }
     if (request.currency !== "ARS") throw new InvalidRequestError("Only ARS is supported");
 
-    const fingerprint = JSON.stringify([
-      request.amount,
-      request.currency,
-      request.destination,
-      request.reference,
-    ]);
+    const fingerprint = fingerprintOf(request);
     const existing = this.byKey.get(request.idempotencyKey);
     if (existing) {
       if (existing.fingerprint !== fingerprint) {
@@ -78,8 +86,8 @@ export class MockPayoutProvider implements PayoutProvider {
     const d = destination as { type?: unknown; email?: unknown } | null;
     // Anything other than a Mercado Pago e-mail (CBU, CVU, alias, ...) is out of V1.
     if (!d || d.type !== "mercadopago_email") return "unsupported_destination";
-    if (typeof d.email !== "string" || !EMAIL_PATTERN.test(d.email)) return "invalid_destination";
-    const email = d.email.toLowerCase();
+    if (typeof d.email !== "string" || !EMAIL_PATTERN.test(normalizeEmail(d.email))) return "invalid_destination";
+    const email = normalizeEmail(d.email);
     if (email === MOCK_UNKNOWN_ACCOUNT_EMAIL) return "destination_not_found";
     if (email === MOCK_CLOSED_ACCOUNT_EMAIL) return "destination_closed";
     return undefined;
