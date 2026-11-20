@@ -29,7 +29,7 @@ const payoutReq = (over: Partial<CreatePayoutRequest> = {}): CreatePayoutRequest
   ...over,
 });
 
-describe("top-up strict idempotency (covers m1, AG-IDEM-03, AG-IDEM-10)", () => {
+describe("top-up strict idempotency (covers m1, AG-IDEM-10)", () => {
   it.each(["approve", "reject", "pending"] as const)(
     "m1: same reference and same payload returns the stored payment (%s), count 1",
     async (scenario) => {

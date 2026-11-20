@@ -6,6 +6,15 @@ export interface MockPlaceEntry {
   readonly keywords: readonly string[];
 }
 
+/** Recursively freezes a value (objects and arrays) so the dataset cannot be tampered with. */
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+}
+
 /** Id of the fake ice-cream shop (decision D43). */
 export const TEST_ICE_CREAM_PLACE_ID = "mock-place-001";
 
@@ -13,7 +22,7 @@ export const TEST_ICE_CREAM_PLACE_ID = "mock-place-001";
  * Fictitious dataset. Every entry is fake: example domains, reserved-style phone numbers,
  * made-up addresses. Order here is the deterministic result order.
  */
-export const MOCK_PLACES: readonly MockPlaceEntry[] = [
+export const MOCK_PLACES: readonly MockPlaceEntry[] = deepFreeze([
   {
     place: {
       placeId: TEST_ICE_CREAM_PLACE_ID,
@@ -71,4 +80,4 @@ export const MOCK_PLACES: readonly MockPlaceEntry[] = [
     },
     keywords: ["heladeria", "helado", "helados", "ice cream"],
   },
-];
+]);

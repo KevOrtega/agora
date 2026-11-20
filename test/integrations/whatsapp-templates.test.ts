@@ -1,5 +1,3 @@
-import http from "node:http";
-import https from "node:https";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MessagingError,
@@ -10,23 +8,21 @@ import {
   type SendRequest,
   type TemplateMessage,
 } from "../../src/integrations/whatsapp/index.js";
+import { installNoNetworkGuard } from "../no-network.js";
 
 const PHONE = "+5491100000001";
 const OTHER_PHONE = "+5491100000002";
 
+installNoNetworkGuard();
+
+// Console silence: the mock must never log.
 const spies = {
-  fetch: vi.fn(),
-  httpRequest: vi.fn(),
-  httpsRequest: vi.fn(),
   log: vi.fn(),
   error: vi.fn(),
   warn: vi.fn(),
 };
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", spies.fetch);
-  vi.spyOn(http, "request").mockImplementation(spies.httpRequest);
-  vi.spyOn(https, "request").mockImplementation(spies.httpsRequest);
   vi.spyOn(console, "log").mockImplementation(spies.log);
   vi.spyOn(console, "error").mockImplementation(spies.error);
   vi.spyOn(console, "warn").mockImplementation(spies.warn);
@@ -36,7 +32,6 @@ afterEach(() => {
   for (const spy of Object.values(spies)) {
     expect(spy).not.toHaveBeenCalled();
   }
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -222,5 +217,35 @@ describe("canonical idempotency payload", () => {
     const err = await failure(p.send(other));
     expect(err.kind).toBe("idempotency_conflict");
     expect(p.listOutbound()).toHaveLength(1);
+  });
+});
+
+describe("undefined values", () => {
+  // covers QA PR #10 m1
+  it("ignores an extra undefined field outside the parameters when checking idempotency", async () => {
+    const p = new MockMessagingProvider();
+    const base = tpl({ parameters: { order_reference: "1234", status: "ok" } });
+    const first = await p.send(req("k1", base));
+    const withUndefined = { ...base, note: undefined } as TemplateMessage;
+    const again = await p.send(req("k1", withUndefined));
+    expect(again.providerMessageId).toBe(first.providerMessageId);
+    expect(p.listOutbound()).toHaveLength(1);
+  });
+
+  // covers QA PR #10 m2
+  it("rejects a required parameter whose value is undefined as missing", async () => {
+    const p = new MockMessagingProvider();
+    const parameters = { order_reference: "1", status: undefined } as unknown as Record<string, string>;
+    const err = await failure(p.send(req("k1", tpl({ parameters }))));
+    expect(err.kind).toBe("invalid_template_parameters");
+    expect(p.listOutbound()).toHaveLength(0);
+  });
+
+  it("rejects an extra parameter key whose value is undefined", async () => {
+    const p = new MockMessagingProvider();
+    const parameters = { order_reference: "1", status: "ok", extra: undefined } as unknown as Record<string, string>;
+    const err = await failure(p.send(req("k1", tpl({ parameters }))));
+    expect(err.kind).toBe("invalid_template_parameters");
+    expect(p.listOutbound()).toHaveLength(0);
   });
 });

@@ -17,6 +17,7 @@ TypeScript on Node.js 22+ (npm), plain `node:http` server, Vitest, ESLint. Plann
 - `npm test` — tests (must not need network or a database)
 - `npm run lint` — ESLint
 - `npm run typecheck` — TypeScript check
+- Tests run with the network blocked: a Vitest setup file (`test/setup-network-guard.ts`) blocks non-loopback traffic in every test file, and integration suites use the stricter `test/no-network.ts` guard. CI additionally reruns `npm test` inside a loopback-only network namespace (`unshare --net`) after a canary step that proves the block.
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck and tests on every PR and on push to main.
 
