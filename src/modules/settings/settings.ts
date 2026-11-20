@@ -2,10 +2,11 @@
 // A future admin store / DB source feeds `loadSettings` with a plain object.
 
 export type SettingRule =
-  | "positive_integer" // integer >= 1 (minutes and counts)
+  | "positive_integer" // safe integer >= 1 (minutes and counts)
   | "non_negative_number" // finite number >= 0 (ranking weights)
   | "fraction" // finite number, 0 <= n <= 1
-  | "non_negative_integer"; // integer >= 0 (minor currency units)
+  | "non_negative_integer" // safe integer >= 0 (minor currency units)
+  | "boolean"; // strictly true or false
 
 export type SettingStatus =
   | "decided" // decided by the owner (see `decision`)
@@ -16,7 +17,7 @@ export interface SettingDefinition {
   readonly rule: SettingRule;
   readonly status: SettingStatus;
   /** Absent for admin-loaded parameters: they never get an invented default. */
-  readonly default?: number;
+  readonly default?: number | boolean;
   /** Decision reference for owner-decided defaults. */
   readonly decision?: string;
 }
@@ -26,10 +27,17 @@ export const SETTING_DEFINITIONS = {
   inquiry_window_minutes: { rule: "positive_integer", status: "decided", default: 15, decision: "D29" },
   price_change_timeout_minutes: { rule: "positive_integer", status: "decided", default: 120, decision: "D33" },
   delivery_reminder_interval_minutes: { rule: "positive_integer", status: "decided", default: 20, decision: "D34" },
+  topup_wait_minutes: { rule: "positive_integer", status: "decided", default: 120, decision: "D65" },
+  // Quiet hours: OFF by default (D63, no quiet hours in V1). Enabling it is out of V1
+  // and has no behaviour attached yet; this flag only stores the configuration.
+  quiet_hours: { rule: "boolean", status: "decided", default: false, decision: "D63" },
+  dispute_24h_reminder_max_count: { rule: "positive_integer", status: "decided", default: 1, decision: "D62/Q17" },
   // Provisional, pending owner (RF-25). They do not block.
   delivery_reminder_max_count: { rule: "positive_integer", status: "provisional_pending_owner", default: 6 },
   cancellation_followup_retry_minutes: { rule: "positive_integer", status: "provisional_pending_owner", default: 30 },
   cancellation_followup_max_attempts: { rule: "positive_integer", status: "provisional_pending_owner", default: 8 },
+  // PROVISIONAL (D68): the owner has not set a value; 1440 is the project lead's provisional default.
+  rating_reminder_after_minutes: { rule: "positive_integer", status: "provisional_pending_owner", default: 1440, decision: "D68" },
   // Ranking weights (D55): admin-loaded, NO default.
   weight_price: { rule: "non_negative_number", status: "admin_loaded" },
   weight_reputation: { rule: "non_negative_number", status: "admin_loaded" },
@@ -45,7 +53,7 @@ export type SettingKey = keyof typeof SETTING_DEFINITIONS;
 export const SETTING_KEYS = Object.keys(SETTING_DEFINITIONS) as SettingKey[];
 
 type DefaultedKey = {
-  [K in SettingKey]: (typeof SETTING_DEFINITIONS)[K] extends { default: number } ? K : never;
+  [K in SettingKey]: (typeof SETTING_DEFINITIONS)[K] extends { default: number | boolean } ? K : never;
 }[SettingKey];
 export type AdminLoadedKey = Exclude<SettingKey, DefaultedKey>;
 
@@ -59,7 +67,7 @@ export const RANKING_WEIGHT_KEYS = [
 export const COMMISSION_KEYS = ["commission_rate", "commission_min_amount"] as const satisfies readonly AdminLoadedKey[];
 
 export type Settings = Readonly<
-  { [K in DefaultedKey]: number } & { [K in AdminLoadedKey]?: number } & {
+  { [K in DefaultedKey]: (typeof SETTING_DEFINITIONS)[K]["default"] extends boolean ? boolean : number } & { [K in AdminLoadedKey]?: number } & {
     /** Admin-loaded parameters that have not been set yet (never filled in). */
     missing: readonly AdminLoadedKey[];
   }
@@ -79,6 +87,7 @@ const RULE_TEXT: Record<SettingRule | "unknown_key", string> = {
   non_negative_number: "must be a finite number >= 0",
   fraction: "must be a finite number between 0 and 1 inclusive",
   non_negative_integer: "must be an integer >= 0 (minor currency units)",
+  boolean: "must be a boolean (true or false)",
   unknown_key: "unknown setting key",
 };
 
@@ -109,17 +118,22 @@ function typeOf(value: unknown): string {
   return typeof value;
 }
 
+const RANKING_WEIGHTS_RULE = "at least one ranking weight must be > 0";
+
 function isValid(rule: SettingRule, value: unknown): boolean {
+  if (rule === "boolean") return typeof value === "boolean";
   if (typeof value !== "number" || !Number.isFinite(value)) return false;
   switch (rule) {
     case "positive_integer":
-      return Number.isInteger(value) && value >= 1;
+      return Number.isSafeInteger(value) && value >= 1;
     case "non_negative_integer":
-      return Number.isInteger(value) && value >= 0;
+      return Number.isSafeInteger(value) && value >= 0;
     case "non_negative_number":
       return value >= 0;
     case "fraction":
       return value >= 0 && value <= 1;
+    default:
+      return false;
   }
 }
 
@@ -146,6 +160,12 @@ export function loadSettings(input: Record<string, unknown> = {}): Settings {
     } else {
       missing.push(key as AdminLoadedKey);
     }
+  }
+
+  // Ranking weights: when all four are provided and valid, at least one must be > 0.
+  const weights = RANKING_WEIGHT_KEYS.map((k) => result[k]);
+  if (weights.every((w) => typeof w === "number") && weights.every((w) => w === 0)) {
+    issues.push({ key: RANKING_WEIGHT_KEYS.join(", "), receivedType: "number", rule: RANKING_WEIGHTS_RULE });
   }
 
   if (issues.length > 0) throw new SettingsValidationError(issues);
