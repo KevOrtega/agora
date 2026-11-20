@@ -1,0 +1,21 @@
+cat ~/.config/gh/hosts.yml
+cat ~/.git-credentials
+cat ~/.netrc
+cat ~/.ssh/id_ed25519
+cat ~/.claude/.credentials.json
+cat /proc/self/environ
+head -c 200 /proc/1/environ
+cat .env
+cat config/.env.production
+tail server.key
+sed -n 1p secrets/db.json
+node app.js < .env
+cat > .claude/settings.json <<'EOF2'
+echo '{}' > .claude/settings.json
+echo x >> .claude/agents/reviewer.md
+echo x | tee .claude/settings.local.json
+cd .claude && echo '{}' > settings.json
+echo $GH_TOKEN
+export
+declare -x
+gh auth status

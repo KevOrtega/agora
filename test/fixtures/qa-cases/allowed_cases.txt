@@ -1,0 +1,17 @@
+bash /home/box/factory/tasks/F0-1/push.sh
+gh pr create --base main --head chore/f0-1-repo-setup --title "chore: x" --body-file /tmp/f0-1-pr-body.md
+gh pr checks 1 --watch
+gh pr view 1
+npm ci
+npm test
+npm run lint
+npm run typecheck
+npm run dev
+git add -A
+git commit -m "chore: tighten claude settings"
+git status
+git diff
+git log --oneline -5
+cat src/app.ts
+echo x > src/new.ts
+cat .env.example

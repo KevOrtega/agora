@@ -4,7 +4,7 @@
 - Code, identifiers, files, comments, commits, branches, PRs, routes, logs and tests are in **English**. Only user-facing UI text is in **Spanish**.
 - Work on a branch and open a PR. Never commit or push to `main`; never merge (the owner merges).
 - This repo is **PUBLIC**: no secrets, no real data (names, phones, emails, businesses, amounts) in code, logs, tests, commits or PRs. Use fictitious test data only.
-- Secrets are provided later through secure fields; use mocks until then. Never read `.env*`, `*.pem`, `*.key` or `secrets/**`. Only `.env.example` (names, no values) is committed.
+- Secrets are provided later through secure fields; use mocks until then. Never read `.env*`, `*.pem`, `*.key` or `secrets/**`. Only `.env.example` (names, no values) is committed; it is edited by a human, because Claude cannot read or edit it (the `.env*` deny rules cover it).
 - No deploys, no hosting CLIs, no real external calls (WhatsApp, payments) without the owner's approval.
 - Keep changes small and in scope.
 

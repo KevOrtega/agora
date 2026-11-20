@@ -12,3 +12,4 @@ coverage/
 secrets/
 
 .claude/settings.local.json
+.envrc

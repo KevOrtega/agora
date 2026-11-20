@@ -1,0 +1,117 @@
+git push origin main
+git push -u origin main
+git push origin HEAD:main
+git push origin refs/heads/main
+git push origin HEAD:refs/heads/main
+git push origin x:refs/heads/main
+git push origin chore/x:refs/heads/main
+git push origin +main
+git push origin +HEAD:main
+git push --force
+git push --force-with-lease origin chore/x
+git push -f
+git push origin -f
+git push origin chore/x -f
+git push origin +chore/x
+git push origin :chore/x
+git push origin :main
+git push --delete origin chore/x
+git push -d origin chore/x
+git push origin -d chore/x
+git push origin --all
+git push --all
+git push --mirror
+git push
+git push origin
+git push origin HEAD
+git -C . push origin main
+git -c push.default=current push origin main
+git --git-dir=.git push origin main
+git  push origin main
+git push  origin  main
+git push origin	main
+cd x && git push origin main
+cd x; git push origin main
+true || git push origin main
+timeout 30 git push origin main
+FOO=bar git push origin main
+bash -c 'git push origin main'
+sh -c "git push origin main"
+/usr/bin/git push origin main
+eval git push origin main
+git push origin maintenance
+git push origin chore/f0-1-repo-setup
+bash /home/box/factory/tasks/F0-1/push.sh
+gh pr merge 1 --merge
+gh pr merge 1 --admin --squash
+gh api -X PUT repos/KevOrtega/agora/pulls/1/merge
+gh api -X PATCH repos/KevOrtega/agora/git/refs/heads/main -f sha=deadbeef -F force=true
+gh api -X PUT repos/KevOrtega/agora/contents/x.txt -f message=x -f content=eA== -f branch=main
+gh api -X DELETE repos/KevOrtega/agora/git/refs/heads/chore/x
+git merge main
+railway up
+railway variables
+npx railway up
+npx @railway/cli up
+bunx @railway/cli up
+pnpm dlx @railway/cli up
+~/.railway/bin/railway up
+/usr/local/bin/railway up
+curl -X POST https://backboard.railway.app/graphql/v2
+npm run deploy
+npm run deploy:prod
+npm publish
+fly deploy
+flyctl deploy
+npx vercel --prod
+vercel deploy
+netlify deploy
+heroku releases
+gh workflow run deploy.yml
+docker push ghcr.io/x/agora
+wrangler deploy
+firebase deploy
+render deploys create
+gcloud run deploy
+kubectl apply -f k8s.yaml
+printenv
+printenv GH_TOKEN
+env
+env | grep TOKEN
+set
+export -p
+declare -p
+echo $AGORA_GITHUB_TOKEN
+echo $CLAUDE_CODE_OAUTH_TOKEN
+cat /proc/self/environ
+gh auth token
+gh auth status --show-token
+git config --get-all credential.helper
+cat ~/.config/gh/hosts.yml
+cat ~/.git-credentials
+cat ~/.netrc
+source .env && node app.js
+node -e "console.log(require('fs').readFileSync('.env','utf8'))"
+python3 -c "print(open('.env').read())"
+grep -r . .
+cat ~/.config/gh/hosts.yml
+cat ~/.git-credentials
+cat ~/.netrc
+cat ~/.ssh/id_ed25519
+cat ~/.claude/.credentials.json
+cat /proc/self/environ
+head -c 200 /proc/1/environ
+cat .env
+cat config/.env.production
+tail server.key
+sed -n 1p secrets/db.json
+node app.js < .env
+cat > .claude/settings.json <<'EOF2'
+echo '{}' > .claude/settings.json
+echo x >> .claude/agents/reviewer.md
+echo x | tee .claude/settings.local.json
+cd .claude && echo '{}' > settings.json
+echo $GH_TOKEN
+export
+declare -x
+gh auth status
