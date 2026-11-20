@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push * main*)",
+      "Bash(git push*--force*)",
+      "Bash(git push -f*)",
+      "Bash(git push*:main*)",
+      "Bash(git push*--delete*)",
+      "Bash(npm run deploy*)",
+      "Bash(npm publish*)",
+      "Bash(railway*)",
+      "Bash(fly *)",
+      "Bash(flyctl*)",
+      "Bash(vercel*)",
+      "Bash(heroku*)",
+      "Bash(netlify*)",
+      "Bash(printenv*)",
+      "Read(./.env*)",
+      "Read(**/.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(./secrets/**)",
+      "Read(**/secrets/**)"
+    ]
+  }
+}

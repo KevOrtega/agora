@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.log
+
+# Secrets: never commit. Only .env.example (names, no values) is allowed.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+.claude/settings.local.json
