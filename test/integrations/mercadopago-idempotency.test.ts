@@ -8,6 +8,9 @@ import {
   type CreatePayoutRequest,
   type CreateTopupRequest,
 } from "../../src/integrations/mercadopago/index.js";
+import { installNoNetworkGuard } from "../no-network.js";
+
+installNoNetworkGuard();
 
 const topupReq = (over: Partial<CreateTopupRequest> = {}): CreateTopupRequest => ({
   externalReference: "topup-idem-1",
