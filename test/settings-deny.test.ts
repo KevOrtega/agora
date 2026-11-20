@@ -5,6 +5,11 @@ import { readCases } from "./helpers.js";
 const settings = JSON.parse(readFileSync(new URL("../.claude/settings.json", import.meta.url), "utf8"));
 const base = JSON.parse(readFileSync(new URL("./fixtures/qa-settings-base.json", import.meta.url), "utf8"));
 const deny: string[] = settings.permissions.deny;
+const NEW_RULES = [
+  "Bash(git config*alias*)", "Bash(git -c *alias*)", "Bash(git --config-env*)", "Bash(gh alias*)",
+  "Bash(*kubectl*)", "Bash(*gcloud*)", "Bash(*doctl*)", "Bash(*wrangler*)", "Bash(helm *)", "Bash(aws *)", "Bash(az *)",
+  "Edit(~/.claude/**)", "Write(~/.claude/**)",
+];
 
 // --- Port of QA's sim_deny.py (Bash rules only) ---
 function ruleRegex(p: string): RegExp {
@@ -54,7 +59,6 @@ const EXCEPTION_PREFIXES = [
   "source .env", // covered by Read(.env*) only for direct readers (residual)
   "grep -r . .", // recursive grep (residual)
   "git merge main", // local merge; protection of main is GitHub branch protection
-  "kubectl apply", // non-listed platform (gcloud run deploy / wrangler deploy are matched by *deploy*)
   // Covered by Read(...) / Edit(...) deny rules, not by Bash rules:
   "cat ~/", "cat /proc/", "head -c 200 /proc/", "cat .env", "cat config/.env", "tail server.key",
   "sed -n 1p secrets/", "node app.js < .env", "cat > .claude/", "echo '{}' > .claude/", "echo x >> .claude/",
@@ -70,7 +74,7 @@ describe("settings.json deny rules", () => {
   });
 
   it("push script contains neither 'deploy' nor 'TOKEN'", () => {
-    const c = "bash /home/box/factory/tasks/F0-1/push.sh";
+    const c = "bash path/to/push.sh";
     expect(c).not.toMatch(/deploy|TOKEN/);
     expect(deniedBy(c)).toBeNull();
   });
@@ -87,8 +91,33 @@ describe("settings.json deny rules", () => {
     expect(deniedBy(c) !== null || isException(c)).toBe(true);
   });
 
-  it("deny list is the QA base plus Write(./.claude/**)", () => {
-    expect(deny).toEqual([...base.permissions.deny, "Write(./.claude/**)"]);
+  it("deny list keeps the QA base in order, then Write(./.claude/**), then only the new rules", () => {
+    expect(deny.slice(0, base.permissions.deny.length + 1)).toEqual([...base.permissions.deny, "Write(./.claude/**)"]);
+    expect(deny.slice(base.permissions.deny.length + 1)).toEqual(NEW_RULES);
+  });
+
+  it.each(["git config alias.p push", "git -c alias.p=push p origin main", "git -c alias.p=push p origin HEAD:refs/heads/main"])(
+    "denies alias trick: %s",
+    (c) => {
+      expect(deniedBy(c)).not.toBeNull();
+    },
+  );
+
+  it.each(readCases("cloud_cli_cases.txt"))("denies cloud CLI: %s", (c) => {
+    expect(deniedBy(c)).not.toBeNull();
+  });
+
+  it.each(readCases("workflow_allowed_cases.txt"))("does not deny workflow command: %s", (c) => {
+    expect(deniedBy(c)).toBeNull();
+  });
+
+  it("denies editing user-level Claude settings", () => {
+    expect(deny).toContain("Edit(~/.claude/**)");
+    expect(deny).toContain("Write(~/.claude/**)");
+  });
+
+  it("keeps hooks enabled", () => {
+    expect(settings.disableAllHooks).toBe(false);
   });
 
   it("has required Read/Edit/Write rules", () => {
@@ -99,7 +128,11 @@ describe("settings.json deny rules", () => {
 
   it("registers the Bash PreToolUse guard hook", () => {
     const entry = settings.hooks.PreToolUse.find((h: { matcher: string }) => h.matcher === "Bash");
-    expect(entry.hooks[0].type).toBe("command");
-    expect(entry.hooks[0].command).toContain(".claude/hooks/guard-bash.mjs");
+    const hook = entry.hooks[0];
+    expect(hook.type).toBe("command");
+    expect(hook.command).toBe("node");
+    expect(hook.args).toEqual(["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-bash.mjs"]);
+    expect(hook.onFailure).toBe("block");
+    expect(hook.timeout).toBe(10);
   });
 });

@@ -1,4 +1,5 @@
 {
+  "disableAllHooks": false,
   "permissions": {
     "deny": [
       "Bash(git push*)",
@@ -46,7 +47,20 @@
       "Read(~/.claude/.credentials.json)",
       "Read(//proc/**)",
       "Edit(./.claude/**)",
-      "Write(./.claude/**)"
+      "Write(./.claude/**)",
+      "Bash(git config*alias*)",
+      "Bash(git -c *alias*)",
+      "Bash(git --config-env*)",
+      "Bash(gh alias*)",
+      "Bash(*kubectl*)",
+      "Bash(*gcloud*)",
+      "Bash(*doctl*)",
+      "Bash(*wrangler*)",
+      "Bash(helm *)",
+      "Bash(aws *)",
+      "Bash(az *)",
+      "Edit(~/.claude/**)",
+      "Write(~/.claude/**)"
     ]
   },
   "hooks": {
@@ -56,7 +70,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\""
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-bash.mjs"],
+            "onFailure": "block",
+            "timeout": 10
           }
         ]
       }

@@ -8,6 +8,9 @@
 - No deploys, no hosting CLIs, no real external calls (WhatsApp, payments) without the owner's approval.
 - Keep changes small and in scope.
 
+## Pushing and guards
+Claude Code never pushes. The operator pushes the branch with an approved push script kept outside the repo. Direct `git push` (and obfuscated forms, git aliases, `gh api`, `gh pr merge`, cloud CLIs such as `kubectl`) is denied in `.claude/settings.json` and blocked by the fail-closed Bash hook `.claude/hooks/guard-bash.mjs`. GitHub branch protection on `main` is the real control. Text that merely mentions `git push` (echo, commit message) is blocked too; this is an accepted false positive. Do not put machine-specific paths in the repo (a test checks for it).
+
 ## Stack
 TypeScript on Node.js 22+ (npm), plain `node:http` server, Vitest, ESLint. Planned: PostgreSQL (the credit ledger needs transactions) with a Postgres-backed job queue (e.g. pg-boss) to avoid extra infrastructure. Neither is wired yet.
 

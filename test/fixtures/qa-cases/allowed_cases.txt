@@ -1,4 +1,4 @@
-bash /home/box/factory/tasks/F0-1/push.sh
+bash path/to/push.sh
 gh pr create --base main --head chore/f0-1-repo-setup --title "chore: x" --body-file /tmp/f0-1-pr-body.md
 gh pr checks 1 --watch
 gh pr view 1

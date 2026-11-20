@@ -1,0 +1,8 @@
+# Cloud/orchestration CLIs denied by settings (QA round 2, finding N3).
+kubectl apply -f k8s.yaml
+helm install release ./chart
+gcloud run services list
+aws s3 ls
+az account show
+doctl apps list
+wrangler whoami

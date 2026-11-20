@@ -1,0 +1,20 @@
+# Normal workflow commands that must stay allowed by the hook and not be denied by settings.
+git status
+git diff
+git add -A
+git commit -m "chore: tighten settings"
+git log --oneline -5
+git log --grep push
+git stash push -m wip
+git merge main
+git -C . status
+git -c core.pager=cat log -1
+gh pr create --base main --head chore/x --title "chore: x" --body-file /tmp/b.md
+gh pr checks 1
+gh pr view 1
+npm ci
+npm test
+npm run lint
+npm run typecheck
+npm run dev
+bash path/to/push.sh

@@ -41,7 +41,7 @@ sh -c "git push origin main"
 eval git push origin main
 git push origin maintenance
 git push origin chore/f0-1-repo-setup
-bash /home/box/factory/tasks/F0-1/push.sh
+bash path/to/push.sh
 gh pr merge 1 --merge
 gh pr merge 1 --admin --squash
 gh api -X PUT repos/KevOrtega/agora/pulls/1/merge
