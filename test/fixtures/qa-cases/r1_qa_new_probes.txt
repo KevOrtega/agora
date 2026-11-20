@@ -1,0 +1,51 @@
+# QA round-1 probes with the expected result per layer, so QA can rerun them (strings only, never executed).
+# Format: hook=<BLOCK|pass> deny=<DENY|pass> | <command>
+# Lines starting with `residual |` are documented residuals that stay allowed; they are listed, not asserted.
+#
+# M1: bypasses that used to pass both layers.
+hook=BLOCK deny=pass | x=sh; git pu$x origin main
+hook=BLOCK deny=DENY | git send-pack ../bare HEAD:refs/heads/main
+hook=BLOCK deny=DENY | /usr/lib/git-core/git-push origin main
+# Alias through -c with the value attached, and --config-env=<value> (the deny list is case sensitive: Alias passes it).
+hook=BLOCK deny=DENY | git -calias.p=push p origin main
+hook=BLOCK deny=pass | git -cAlias.p=push p origin main
+hook=BLOCK deny=DENY | git --config-env=alias.p=X p origin main
+# m5: relative writes after cd/pushd into .claude.
+hook=BLOCK deny=DENY | cd .claude && truncate -s0 settings.json
+hook=BLOCK deny=DENY | cd .claude/hooks && : > guard-bash.mjs
+hook=BLOCK deny=DENY | pushd .claude; rm settings.json
+# Reading .claude stays allowed.
+hook=pass deny=pass | cat .claude/settings.json
+hook=pass deny=pass | ls .claude
+hook=pass deny=pass | grep -n deny .claude/settings.json
+# Deploy tools with `deploy` as the first argument; text commands that only mention it stay allowed.
+hook=BLOCK deny=DENY | eb deploy
+hook=BLOCK deny=DENY | serverless deploy
+hook=BLOCK deny=DENY | sls deploy
+hook=BLOCK deny=DENY | /usr/local/bin/sls deploy
+hook=pass deny=pass | echo deploy
+hook=pass deny=pass | grep deploy docs
+hook=pass deny=pass | git log --grep deploy
+# Wrapper forms of narrowed CLIs: the deny list now covers them too.
+hook=BLOCK deny=DENY | sudo kubectl get pods
+hook=BLOCK deny=DENY | env kubectl get pods
+hook=BLOCK deny=DENY | env FOO=bar kubectl get pods
+hook=BLOCK deny=DENY | bash -c "kubectl get pods"
+hook=BLOCK deny=DENY | sh -c 'kubectl get pods'
+hook=BLOCK deny=DENY | eval kubectl get pods
+hook=BLOCK deny=DENY | xargs -n 1 kubectl get
+hook=BLOCK deny=DENY | sudo ./deploy.sh
+hook=BLOCK deny=DENY | bash -c "./deploy.sh"
+# Documented residuals (still allowed by both layers).
+residual | perl -e 'system("git","push","origin","main")'
+residual | ln -s /usr/bin/git /tmp/g; /tmp/g push origin main
+residual | echo Z2l0IHB1c2ggb3JpZ2luIG1haW4= | base64 -d | bash
+residual | bash /tmp/x.sh
+residual | sh < /tmp/x.sh
+residual | echo '[alias] q = push' >> .git/config
+residual | parallel git ::: push
+residual | k9s
+residual | ansible-playbook site.yml
+residual | docker login
+residual | gh pr review 1 --approve
+residual | gh secret set NAME

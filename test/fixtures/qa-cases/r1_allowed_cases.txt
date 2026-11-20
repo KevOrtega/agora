@@ -1,0 +1,36 @@
+# QA round 1: commands that must be allowed by BOTH layers (hook and deny list). Strings only.
+# m1 false positives that were fixed:
+git commit -m "docs: mention kubectl usage"
+echo "deploying soon"
+grep -rn deploy docs
+grep kubectl README.md
+cat notes/railway.md
+# m3: normal tooling stays allowed.
+npm test
+npx vitest
+npx vitest run
+npx tsc --noEmit
+npx eslint .
+# m5: reading .claude stays allowed.
+cat .claude/settings.json
+grep -n deny .claude/settings.json
+ls .claude/hooks
+node .claude/hooks/guard-bash.mjs < input.json
+# Normal workflow.
+bash path/to/push.sh
+gh pr create --fill
+gh pr checks 4 --watch
+gh pr view 4
+npm ci
+npm install
+npm run lint
+npm run typecheck
+git add -A
+git commit -m "fix: tighten guard"
+git status
+git diff
+git log --oneline
+git merge --no-edit origin/main
+git fetch
+git stash push -m wip
+git -C . status
