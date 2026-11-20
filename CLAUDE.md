@@ -40,3 +40,5 @@ One modular monolith backend with a relational database and a job queue. One fol
 - `commission` — per-purchase commission
 
 Modules are currently empty placeholders.
+
+External provider adapters live in `src/integrations/` (e.g. `mercadopago/`: `TopupProvider`/`PayoutProvider` interfaces, in-memory mocks by default, selected via `MERCADOPAGO_ADAPTER`; no real adapter yet).
