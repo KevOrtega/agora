@@ -17,13 +17,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
       - name: Canary - network namespace blocks outbound traffic
         run: |
-          # Must FAIL to reach the internet inside a loopback-only namespace; the step fails if the fetch succeeds.
-          if sudo env "PATH=$PATH" "HOME=$HOME" unshare --net -- bash -c 'ip link set lo up && exec sudo -u "$0" env "PATH=$PATH" "HOME=$HOME" node -e "fetch(\"https://example.com\").then(() => process.exit(0), () => process.exit(1))"' "$(id -un)"; then
-            echo "Network namespace did not block outbound traffic" >&2
-            exit 1
-          fi
+          # Succeeds only if, inside the namespace, lo came up, node ran, and the fetch was rejected.
+          # Node exits 0 only in the rejection handler (1 if the fetch resolves); any setup error fails the step.
+          sudo env "PATH=$PATH" "HOME=$HOME" unshare --net -- bash -ec 'ip link set lo up && exec sudo -u "$0" env "PATH=$PATH" "HOME=$HOME" node -e "fetch(\"https://example.com\").then(() => process.exit(1), () => process.exit(0))"' "$(id -un)"
       - name: Tests with the network blocked (loopback-only namespace)
         run: sudo env "PATH=$PATH" "HOME=$HOME" unshare --net -- bash -c 'ip link set lo up && exec sudo -u "$0" env "PATH=$PATH" "HOME=$HOME" npm test' "$(id -un)"
