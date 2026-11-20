@@ -1,0 +1,10 @@
+# Gitleaks configuration for secret scanning in CI (see .github/workflows/secret-scan.yml).
+# Extend the default ruleset instead of replacing it.
+[extend]
+useDefault = true
+
+# Allowlist: intentionally empty.
+# The existing fictitious credential-like fixtures in tests do not trigger the
+# default rules, so nothing needs allowlisting. If a fake fixture ever does,
+# add the narrowest possible entry (one specific regex or one specific file)
+# with a comment justifying it. Never allowlist broad paths such as test/** or src/**.
