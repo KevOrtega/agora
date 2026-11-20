@@ -124,6 +124,8 @@ CREATE CONSTRAINT TRIGGER ledger_transactions_balanced
 --     one is a subtransaction id of this transaction (savepoints get larger ids). The
 --     header row is visible, so its xid already exists and pg_xact_status() is never
 --     called with a future xid (it would error); a negative result is treated as closed.
+--     Special xids below 3 (e.g. FrozenTransactionId = 2, returned for frozen rows) are
+--     treated as closed before the distance is computed.
 --   * No session state is involved, so it cannot be bypassed from SQL without privileges
 --     (disabling triggers or editing the table needs ownership). Requires PostgreSQL 13+.
 -- If no header row is visible, the check is skipped and the foreign key raises 23503.
@@ -142,6 +144,11 @@ BEGIN
   FROM ledger_transactions WHERE id = NEW.transaction_id;
   IF NOT FOUND THEN
     RETURN NEW;
+  END IF;
+
+  IF header_xmin < 3 THEN
+    RAISE EXCEPTION 'cannot add entries to closed transaction %', NEW.transaction_id
+      USING ERRCODE = 'integrity_constraint_violation';
   END IF;
 
   current_xid := pg_current_xact_id()::text::bigint;
