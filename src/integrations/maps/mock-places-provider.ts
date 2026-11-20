@@ -90,7 +90,7 @@ export class MockPlacesProvider implements PlacesProvider {
       if (!tokens.every((t) => haystack.includes(t))) continue;
       if (category && !place.categories.some((c) => normalizeText(c) === category)) continue;
       if (query.area && distanceMeters(query.area.center, place.location) > query.area.radiusMeters) continue;
-      places.push(place);
+      places.push(structuredClone(place));
     }
     return { places: places.slice(0, query.maxResults ?? DEFAULT_MAX_RESULTS) };
   }
@@ -101,6 +101,6 @@ export class MockPlacesProvider implements PlacesProvider {
     failFor(this.options.scenario ?? "ok");
     const found = MOCK_PLACES.find((e) => e.place.placeId === placeId);
     if (!found) throw new PlaceNotFoundError("Place not found");
-    return found.place;
+    return structuredClone(found.place);
   }
 }

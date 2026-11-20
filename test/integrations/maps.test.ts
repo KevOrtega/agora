@@ -1,10 +1,10 @@
-import http from "node:http";
-import https from "node:https";
-import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   ConfigurationError,
   InvalidRequestError,
   MOCK_PLACES,
+  type MockPlaceEntry,
+  type Place,
   MOCK_QUOTA_QUERY,
   MOCK_TIMEOUT_QUERY,
   MOCK_UNAVAILABLE_PLACE_ID,
@@ -17,21 +17,9 @@ import {
   TEST_ICE_CREAM_PLACE_ID,
   createPlacesProvider,
 } from "../../src/integrations/maps/index.js";
+import { installNoNetworkGuard } from "../no-network.js";
 
-let fetchSpy: MockInstance<typeof globalThis.fetch>;
-let httpSpy: MockInstance<typeof http.request>;
-let httpsSpy: MockInstance<typeof https.request>;
-beforeEach(() => {
-  fetchSpy = vi.spyOn(globalThis, "fetch");
-  httpSpy = vi.spyOn(http, "request");
-  httpsSpy = vi.spyOn(https, "request");
-});
-afterEach(() => {
-  expect(fetchSpy).not.toHaveBeenCalled();
-  expect(httpSpy).not.toHaveBeenCalled();
-  expect(httpsSpy).not.toHaveBeenCalled();
-  vi.restoreAllMocks();
-});
+installNoNetworkGuard();
 
 const provider = () => new MockPlacesProvider();
 
@@ -168,12 +156,18 @@ describe("data hygiene", () => {
           ? Object.values(v).flatMap(strings)
           : [];
 
-  it("only has test data or example domains", () => {
+  it("marks every place as test data and the D43 shop as test data", () => {
+    expect(MOCK_PLACES).toHaveLength(4);
+    for (const { place } of MOCK_PLACES) expect(place.isTestData).toBe(true);
+    const shop = MOCK_PLACES.find((e) => e.place.placeId === TEST_ICE_CREAM_PLACE_ID)?.place;
+    expect(shop?.isTestData).toBe(true);
+    expect(shop?.name).toContain("(TEST)");
+  });
+
+  it("uses only placeholder phones and example domains", () => {
     for (const { place } of MOCK_PLACES) {
-      if (!place.isTestData) {
-        expect(place.website).toMatch(/^https:\/\/[^/]*\.example\.(com|test)\b/);
-      }
-      if (place.website) expect(place.website).toMatch(/\.example\.(com|test)$/);
+      if (place.phone !== undefined) expect(place.phone).toMatch(/^\+54 11 0000-\d{4}$/);
+      if (place.website !== undefined) expect(place.website).toMatch(/^https:\/\/[^/]+\.example\.(com|test)$/);
     }
   });
 
@@ -182,5 +176,58 @@ describe("data hygiene", () => {
       expect(s).not.toMatch(/AIza[0-9A-Za-z_-]{20,}/);
       expect(s).not.toMatch(/[A-Za-z0-9_-]{32,}/);
     }
+  });
+});
+
+describe("immutability", () => {
+  const tamper = (place: Place): void => {
+    // Mutation either throws (frozen) or touches a private copy; both must leave the dataset intact.
+    const attempts: Array<() => void> = [
+      () => ((place as { isTestData: boolean }).isTestData = false),
+      () => ((place.categories as string[]).push("tampered")),
+      () => ((place.location as { latitude: number }).latitude = 0),
+      () => ((place as { name: string }).name = "tampered"),
+    ];
+    for (const attempt of attempts) {
+      try {
+        attempt();
+      } catch (e) {
+        expect(e).toBeInstanceOf(TypeError);
+      }
+    }
+  };
+
+  it("keeps the dataset unchanged after tampering with search results", async () => {
+    const before = structuredClone(MOCK_PLACES);
+    const { places } = await provider().searchPlaces({ text: "ice cream" });
+    tamper(places[0] as Place);
+    const again = await provider().searchPlaces({ text: "ice cream" });
+    expect(again.places[0]?.isTestData).toBe(true);
+    expect(again.places[0]?.categories).toEqual(["ice_cream_shop", "dessert_shop"]);
+    expect(again.places[0]?.location).toEqual({ latitude: -34.6, longitude: -58.4 });
+    expect(MOCK_PLACES).toEqual(before);
+  });
+
+  it("keeps the dataset unchanged after tampering with place details", async () => {
+    const before = structuredClone(MOCK_PLACES);
+    tamper(await provider().getPlaceDetails(TEST_ICE_CREAM_PLACE_ID));
+    const again = await provider().getPlaceDetails(TEST_ICE_CREAM_PLACE_ID);
+    expect(again.isTestData).toBe(true);
+    expect(again.categories).toEqual(["ice_cream_shop", "dessert_shop"]);
+    expect(MOCK_PLACES).toEqual(before);
+  });
+
+  it("throws in strict mode when mutating the exported dataset, and leaves it unchanged", () => {
+    const entry = MOCK_PLACES[0] as MockPlaceEntry;
+    expect(Object.isFrozen(MOCK_PLACES)).toBe(true);
+    expect(Object.isFrozen(entry.place)).toBe(true);
+    expect(Object.isFrozen(entry.place.categories)).toBe(true);
+    expect(Object.isFrozen(entry.place.location)).toBe(true);
+    expect(() => {
+      (entry.place as { isTestData: boolean }).isTestData = false;
+    }).toThrow(TypeError);
+    expect(() => (entry.place.categories as string[]).push("x")).toThrow(TypeError);
+    expect(() => (MOCK_PLACES as MockPlaceEntry[]).push(entry)).toThrow(TypeError);
+    expect(entry.place.isTestData).toBe(true);
   });
 });

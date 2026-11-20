@@ -1,5 +1,3 @@
-import http from "node:http";
-import https from "node:https";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MOCK_VALID_SIGNATURE,
@@ -10,6 +8,7 @@ import {
   type InboundMessage,
   type SendRequest,
 } from "../../src/integrations/whatsapp/index.js";
+import { installNoNetworkGuard } from "../no-network.js";
 
 const PHONE = "+5491100000001";
 const OTHER_PHONE = "+5491100000002";
@@ -38,10 +37,10 @@ const text = (key: string, to = PHONE): SendRequest => ({
   message: { type: "text", body: "Tu pedido está en camino" },
 });
 
+installNoNetworkGuard();
+
+// Console silence: the mock must never log.
 const spies = {
-  fetch: vi.fn(),
-  httpRequest: vi.fn(),
-  httpsRequest: vi.fn(),
   log: vi.fn(),
   error: vi.fn(),
   warn: vi.fn(),
@@ -49,20 +48,15 @@ const spies = {
 
 beforeEach(() => {
   nowMs = Date.UTC(2030, 0, 1, 12, 0, 0);
-  vi.stubGlobal("fetch", spies.fetch);
-  vi.spyOn(http, "request").mockImplementation(spies.httpRequest);
-  vi.spyOn(https, "request").mockImplementation(spies.httpsRequest);
   vi.spyOn(console, "log").mockImplementation(spies.log);
   vi.spyOn(console, "error").mockImplementation(spies.error);
   vi.spyOn(console, "warn").mockImplementation(spies.warn);
 });
 
 afterEach(() => {
-  // Nothing real is ever sent and the mock stays silent.
   for (const spy of Object.values(spies)) {
     expect(spy).not.toHaveBeenCalled();
   }
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 

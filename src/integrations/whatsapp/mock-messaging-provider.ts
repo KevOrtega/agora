@@ -157,9 +157,11 @@ export class MockMessagingProvider implements MessagingProvider {
       if (message.category !== definition.category || message.languageCode !== definition.languageCode) {
         throw new MessagingError("template_mismatch", "Template category or language does not match the catalog");
       }
+      // A key whose value is undefined is neither present nor allowed (it would vanish on serialization).
       const given = Object.keys(message.parameters);
+      const hasUndefined = Object.values(message.parameters).some((v) => v === undefined);
       const expected = new Set(definition.parameters);
-      if (given.length !== expected.size || !given.every((k) => expected.has(k))) {
+      if (hasUndefined || given.length !== expected.size || !given.every((k) => expected.has(k))) {
         throw new MessagingError(
           "invalid_template_parameters",
           "Template parameters are missing or unexpected",
