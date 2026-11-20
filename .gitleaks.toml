@@ -1,0 +1,9 @@
+# Gitleaks configuration for secret scanning in CI (see .github/workflows/secret-scan.yml).
+# Extend the default ruleset instead of replacing it.
+[extend]
+useDefault = true
+
+# No allowlists of any kind (no [allowlist], [[allowlists]], regexes, stopwords,
+# commits, paths, or disabledRules). If a fake fixture ever triggers a rule,
+# change the fixture so it no longer looks like a credential. Adding an
+# allowlist requires an explicit project decision and a change to the config test.
