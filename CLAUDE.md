@@ -17,8 +17,9 @@ TypeScript on Node.js 22+ (npm), plain `node:http` server, Vitest, ESLint. Plann
 - `npm test` — tests (must not need network or a database)
 - `npm run lint` — ESLint
 - `npm run typecheck` — TypeScript check
+- `npm run secret-scan` — gitleaks scan of the full git history including merge commits (requires gitleaks installed locally)
 
-CI (`.github/workflows/ci.yml`) runs lint, typecheck and tests on every PR and on push to main.
+CI (`.github/workflows/ci.yml`) runs lint, typecheck and tests on every PR and on push to main. `.github/workflows/secret-scan.yml` runs a gitleaks secret scan (config: `.gitleaks.toml`, no allowlists, merge commits included) on every PR and on every push to any branch.
 
 ## Architecture notes
 One modular monolith backend with a relational database and a job queue. One folder per component in `src/modules/`:
