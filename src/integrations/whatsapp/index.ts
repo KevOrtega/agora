@@ -7,6 +7,7 @@ import type { MessagingProvider } from "./types.js";
 
 export * from "./types.js";
 export * from "./config.js";
+export * from "./templates.js";
 export * from "./mock-messaging-provider.js";
 
 /** Returns the mock for `mock`; any other adapter fails fast (no silent fallback, value not echoed). */

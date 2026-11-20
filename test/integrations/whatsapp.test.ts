@@ -19,10 +19,18 @@ let nowMs = Date.UTC(2030, 0, 1, 12, 0, 0);
 const clock = () => new Date(nowMs);
 
 const inbound = (id: string, from = PHONE): InboundMessage => ({ id, from, text: "Hola, quiero pedir" });
+const orderUpdate = (parameters: Record<string, string> = { order_reference: "1234", status: "confirmed" }) =>
+  ({
+    type: "template",
+    name: "order_update",
+    category: "utility",
+    languageCode: "es_AR",
+    parameters,
+  }) as const;
 const template = (key: string, to = PHONE): SendRequest => ({
   idempotencyKey: key,
   to,
-  message: { type: "template", name: "order_update", languageCode: "es_AR", parameters: ["1234"] },
+  message: orderUpdate(),
 });
 const text = (key: string, to = PHONE): SendRequest => ({
   idempotencyKey: key,
@@ -126,7 +134,7 @@ describe("outbound recording", () => {
       to: PHONE,
       idempotencyKey: "k1",
       providerMessageId: result.providerMessageId,
-      message: { type: "template", name: "order_update", languageCode: "es_AR", parameters: ["1234"] },
+      message: orderUpdate(),
     });
   });
 

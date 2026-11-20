@@ -1,3 +1,4 @@
+import { TEMPLATE_CATALOG, type TemplateDefinition } from "./templates.js";
 import {
   MessagingError,
   type InboundDelivery,
@@ -12,11 +13,24 @@ import {
 /** Fictitious signature the mock accepts (stand-in for the `X-Hub-Signature-256` check). */
 export const MOCK_VALID_SIGNATURE = "sha256=mock-valid-signature";
 
-/** Template names the mock considers approved unless overridden. */
-export const DEFAULT_APPROVED_TEMPLATES: readonly string[] = [
-  "order_update",
-  "credit_topup_confirmation",
-];
+/** Templates the mock considers approved unless overridden (the PROVISIONAL catalog). */
+export const DEFAULT_APPROVED_TEMPLATES: readonly TemplateDefinition[] = TEMPLATE_CATALOG;
+
+/**
+ * Canonical JSON: object keys sorted recursively, array order preserved.
+ * Used so field order never causes a false idempotency conflict.
+ */
+export function canonicalize(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((v) => canonicalize(v)).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, v]) => `${JSON.stringify(k)}:${canonicalize(v)}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
 
 export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -26,7 +40,7 @@ const E164 = /^\+[1-9]\d{7,14}$/;
 export interface MockMessagingProviderOptions {
   /** Injectable clock; defaults to the system clock. */
   now?: () => Date;
-  approvedTemplates?: readonly string[];
+  approvedTemplates?: readonly TemplateDefinition[];
 }
 
 interface StoredSend {
@@ -37,11 +51,12 @@ interface StoredSend {
 /**
  * Deterministic in-memory provider. Never touches the network or the console.
  * Failure triggers: `simulateTransientFailure(n)` and `simulateLostResponse(n)` affect
- * the next n send attempts; an invalid number or an unapproved template fails permanently.
+ * the next n send attempts; an invalid number, an unapproved template or a template that does not match the catalog
+ * (category, language, parameters) fails permanently and is not stored under its key.
  */
 export class MockMessagingProvider implements MessagingProvider {
   private readonly now: () => Date;
-  private readonly approvedTemplates: Set<string>;
+  private readonly approvedTemplates: Map<string, TemplateDefinition>;
   private readonly inbound: InboundRecord[] = [];
   private readonly seenInboundIds = new Set<string>();
   private readonly lastInboundBySender = new Map<string, Date>();
@@ -53,7 +68,9 @@ export class MockMessagingProvider implements MessagingProvider {
 
   constructor(options: MockMessagingProviderOptions = {}) {
     this.now = options.now ?? (() => new Date());
-    this.approvedTemplates = new Set(options.approvedTemplates ?? DEFAULT_APPROVED_TEMPLATES);
+    this.approvedTemplates = new Map(
+      (options.approvedTemplates ?? DEFAULT_APPROVED_TEMPLATES).map((t) => [t.name, t]),
+    );
   }
 
   simulateTransientFailure(attempts: number): void {
@@ -88,7 +105,7 @@ export class MockMessagingProvider implements MessagingProvider {
   }
 
   async send(request: SendRequest): Promise<SendResult> {
-    const fingerprint = JSON.stringify([request.to, request.message]);
+    const fingerprint = canonicalize({ to: request.to, message: request.message });
     const previous = this.sends.get(request.idempotencyKey);
     if (previous) {
       if (previous.fingerprint !== fingerprint) {
@@ -133,8 +150,20 @@ export class MockMessagingProvider implements MessagingProvider {
     }
     const { message } = request;
     if (message.type === "template") {
-      if (!this.approvedTemplates.has(message.name)) {
+      const definition = this.approvedTemplates.get(message.name);
+      if (!definition) {
         throw new MessagingError("unknown_template", "Template is unknown or not approved");
+      }
+      if (message.category !== definition.category || message.languageCode !== definition.languageCode) {
+        throw new MessagingError("template_mismatch", "Template category or language does not match the catalog");
+      }
+      const given = Object.keys(message.parameters);
+      const expected = new Set(definition.parameters);
+      if (given.length !== expected.size || !given.every((k) => expected.has(k))) {
+        throw new MessagingError(
+          "invalid_template_parameters",
+          "Template parameters are missing or unexpected",
+        );
       }
       return;
     }
