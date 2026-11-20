@@ -3,8 +3,7 @@
 [extend]
 useDefault = true
 
-# Allowlist: intentionally empty.
-# The existing fictitious credential-like fixtures in tests do not trigger the
-# default rules, so nothing needs allowlisting. If a fake fixture ever does,
-# add the narrowest possible entry (one specific regex or one specific file)
-# with a comment justifying it. Never allowlist broad paths such as test/** or src/**.
+# No allowlists of any kind (no [allowlist], [[allowlists]], regexes, stopwords,
+# commits, paths, or disabledRules). If a fake fixture ever triggers a rule,
+# change the fixture so it no longer looks like a credential. Adding an
+# allowlist requires an explicit project decision and a change to the config test.

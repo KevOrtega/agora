@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "secret-scan": "gitleaks git . --redact --no-banner --config .gitleaks.toml"
+    "secret-scan": "gitleaks git . --redact --no-banner --ignore-gitleaks-allow --config .gitleaks.toml --log-opts \"-m --all --full-history\""
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
