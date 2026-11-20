@@ -129,10 +129,12 @@ CREATE CONSTRAINT TRIGGER ledger_transactions_balanced
 --   * No session state is involved, so it cannot be bypassed from SQL without privileges
 --     (disabling triggers or editing the table needs ownership). Requires PostgreSQL 13+.
 -- If no header row is visible, the trigger itself raises 23503 (foreign_key_violation) on
--- ledger_entries_transaction_id_fkey instead of deferring to the foreign key. Under READ
--- COMMITTED, a header inserted but not yet committed by another session is invisible here,
--- while the foreign key check would wait for that session and accept the row once it
--- commits, attaching the entry to an already closed transaction.
+-- ledger_entries_transaction_id_fkey instead of deferring to the foreign key. Reason: under
+-- READ COMMITTED the foreign key check runs at the end of the statement with a newer
+-- snapshot. In a multi-row statement (e.g. INSERT ... SELECT) the trigger can fire for early
+-- rows while another session's header is still uncommitted (invisible here); if that session
+-- commits before the statement ends, the foreign key check then sees the header and accepts
+-- the rows, attaching them to an already closed transaction.
 -- Violations raise SQLSTATE 23000 (integrity_constraint_violation) with a message
 -- containing "closed transaction".
 CREATE FUNCTION ledger_reject_entry_on_closed_transaction() RETURNS trigger
