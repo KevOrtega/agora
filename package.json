@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx src/main.ts",
     "start": "tsx src/main.ts",
@@ -14,6 +16,7 @@
     "secret-scan": "gitleaks git . --redact --no-banner --ignore-gitleaks-allow --config .gitleaks.toml --log-opts \"-m --all --full-history\""
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
     "@eslint/js": "^9.0.0",
     "@types/node": "^22.0.0",
     "eslint": "^9.0.0",

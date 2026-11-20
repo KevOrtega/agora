@@ -35,6 +35,7 @@ One modular monolith backend with a relational database and a job queue. One fol
 - `business_discovery` — finding and proposing businesses
 - `admin_panel` — admin operations
 - `database` — relational DB access
+  - Versioned SQL migrations live in `src/modules/database/migrations/` as `NNNN_name.up.sql` / `NNNN_name.down.sql`; the runner (`migrator.ts`) depends only on the `SqlClient` interface. Tests (`test/database/`) apply them on in-process PGlite (no network, no server).
 - `job_queue` — background jobs
 - `business_payouts` — payouts to businesses
 - `payments_topup` — customer credit top-ups
