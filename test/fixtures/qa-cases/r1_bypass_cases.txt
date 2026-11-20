@@ -1,0 +1,31 @@
+# QA round 1, M1: push bypasses. Format: <both|hook|deny> | <command>. Strings only: never executed.
+# "both" = blocked by the hook AND denied by the settings deny list; "hook" = hook only.
+hook | x=sh; git pu$x origin main
+hook | git pu${x}sh origin main
+hook | git p$(true)ush origin main
+hook | git p`true`ush origin main
+hook | git pu{s,t}h origin main
+hook | git ${x} origin main
+hook | $x push origin main
+hook | /opt/${x}/git push origin main
+both | git send-pack ../remote.git HEAD:refs/heads/main
+both | git -C . send-pack origin HEAD:refs/heads/main
+both | git --no-pager send-pack origin HEAD:refs/heads/main
+hook | git receive-pack .
+hook | git -C . receive-pack .
+both | git http-push https://example.invalid/repo.git main
+both | /usr/lib/git-core/git-push origin main
+both | git-send-pack origin HEAD:refs/heads/main
+hook | git-receive-pack .
+both | git-http-push https://example.invalid/repo.git main
+both | env /usr/lib/git-core/git-push origin main
+both | bash -c "/usr/lib/git-core/git-push origin main"
+both | xargs /usr/lib/git-core/git-push origin main
+both | sudo /usr/lib/git-core/git-send-pack origin HEAD:refs/heads/main
+hook | nohup git-receive-pack . &
+# Alias via -c with the value attached (no space), and --config-env=<value>.
+both | git -calias.p=push p origin main
+hook | git -cAlias.p=push p origin main
+both | git --config-env=alias.p=X p origin main
+hook | git -c$x p origin main
+hook | git --config-env=$x p origin main

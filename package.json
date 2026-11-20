@@ -14,9 +14,9 @@
     "secret-scan": "gitleaks git . --redact --no-banner --ignore-gitleaks-allow --config .gitleaks.toml --log-opts \"-m --all --full-history\""
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
+    "@eslint/js": "^10.0.0",
     "@types/node": "^22.0.0",
-    "eslint": "^9.0.0",
+    "eslint": "^10.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0",

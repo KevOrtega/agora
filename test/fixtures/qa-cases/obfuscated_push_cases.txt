@@ -1,0 +1,23 @@
+# Obfuscated push/merge/api forms that the hook must block (QA round 2, findings N2).
+gi""t push origin main
+g\it push origin main
+git pu""sh origin main
+git p\ush origin main
+gh p\r merge 1
+git $(echo push) origin main
+git `echo push` origin main
+git${IFS}push origin main
+G=git; $G push origin main
+echo push origin main | xargs git
+printf 'push\norigin\nmain' | xargs git
+git -c alias.p=push p origin main
+git -c alias.p=push p origin HEAD:refs/heads/main
+git config alias.p push
+git {push,status} origin main
+git $'push' origin main
+git -C . -c alias.p=push p origin main
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.p GIT_CONFIG_VALUE_0=push git p origin main
+gh alias set m 'pr merge'
+"git" push origin main
+env git push origin main
+bash -c "g\it pu\sh origin main"
